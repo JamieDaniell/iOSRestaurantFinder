@@ -7,20 +7,29 @@
 //
 
 import UIKit
+import MapKit
 
-class RestaurantListController: UITableViewController {
+class RestaurantListController: UITableViewController, MKMapViewDelegate , UISearchResultsUpdating
+{
 
     var coordinate: Coordinate?
     
     let foursquareClient = FoursquareClient(clientID: "TDWS3JFM0VPI4C03JFFYY23G5R1LB1J1HZCHLNT2DN1KC4LV", clientSecret: "YXCLSTQGFKGTGPS5I1HKQKR0KBLVFHY2OCLBSF2GPMAJVE24")
     
     let manager = LocationManager()
+
+    @IBOutlet weak var stackView: UIStackView!
+    @IBOutlet weak var mapView: MKMapView!
+    
+    
+    let searchController = UISearchController(searchResultsController: nil)
     
     var venues: [Venue] = []
     {
         didSet
         {
             tableView.reloadData()
+            addMapAnnotations()
         }
     }
     
@@ -28,8 +37,17 @@ class RestaurantListController: UITableViewController {
     override func viewDidLoad()
     {
         super.viewDidLoad()
-        manager.getPremission()
         
+        // Search Bar configuration
+        searchController.searchResultsUpdater = self
+        searchController.hidesNavigationBarDuringPresentation = true
+        searchController.dimsBackgroundDuringPresentation = false
+        definesPresentationContext = true
+        stackView.addSubview(searchController.searchBar)
+        
+        
+        
+        manager.getPremission()
         manager.onLocationFix = { [weak self] coordinate in
             
             self?.coordinate = coordinate
@@ -121,6 +139,61 @@ class RestaurantListController: UITableViewController {
         refreshControl?.endRefreshing()
     }
     
+    
+    // MARK: MKMapViewDelegate
+    
+    func mapView(mapView: MKMapView , didUpdateUserLocation userLocation: MKUserLocation)
+    {
+        var region = MKCoordinateRegion()
+        region.center = mapView.userLocation.coordinate
+        region.span.latitudeDelta = 0.01
+        region.span.longitudeDelta = 0.01
+        mapView.setRegion(region, animated: true)
+    }
+    
+    func addMapAnnotations()
+    {
+        removeMapAnnotations()
+        if venues.count > 0
+        {
+            let annotations: [MKPointAnnotation] = venues.map { venue in
+                let point = MKPointAnnotation()
+                if let coordinate = venue.location?.coordinate
+                {
+                    point.coordinate = CLLocationCoordinate2D(latitude: coordinate.latitude, longitude: coordinate.longitude)
+                    point.title = venue.name
+                }
+                return point
+            }
+            mapView.addAnnotations(annotations)
+        }
+    }
+    func removeMapAnnotations()
+    {
+        if mapView.annotations.count != 0
+        {
+            for annotation in mapView.annotations
+            {
+                mapView.removeAnnotation(annotation)
+            }
+        }
+    }
+    // MARK: UISearchResultsUpdating 
+    func updateSearchResultsForSearchController(searchController: UISearchController)
+    {
+        if let coordinate = coordinate
+        {
+            foursquareClient.fetchRestaurantsFor(coordinate, category: .Food(nil), query: searchController.searchBar.text) { result in
+                switch result
+                {
+                    case .Success(let venues):
+                        self.venues = venues
+                    case .Failure(let error):
+                        print(error)
+                }
+            }
+        }
+    }
 
 }
 

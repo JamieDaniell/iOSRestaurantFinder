@@ -41,7 +41,7 @@ extension Location: JSONDecodable
     init?(JSON: [String : AnyObject])
     {
         
-        if let lat = JSON["lat"] as? Double, lon = JSON["lng"] as? Double
+        if let lat = JSON["lat"] as? Double, let lon = JSON["lng"] as? Double
         {
             coordinate = Coordinate(longitude: lon, latitude: lat)
         }
@@ -74,7 +74,7 @@ extension Venue: JSONDecodable
 {
     init?(JSON: [String : AnyObject])
     {
-        guard let id = JSON["id"] as? String, name = JSON["name"] as? String else
+        guard let id = JSON["id"] as? String, let name = JSON["name"] as? String else
         {
             return nil
         }
